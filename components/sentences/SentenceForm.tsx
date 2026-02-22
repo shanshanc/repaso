@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,12 @@ type SentenceFormProps = {
   onCancel: () => void;
 };
 
+type ParsedResponse = {
+  sentence: string;
+  translation: string;
+  suggestedTags: { name: string; category: TagCategory; isExisting: boolean }[];
+};
+
 export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
   const [sentence, setSentence] = useState("");
   const [translation, setTranslation] = useState("");
@@ -39,6 +46,12 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
   const [pendingNewTags, setPendingNewTags] = useState<
     { name: string; category: TagCategory }[]
   >([]);
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((prev) => {
@@ -77,6 +90,84 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
     setPendingNewTags((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageFile(file);
+    setParseError(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setParseError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleParseImage = async () => {
+    if (!imageFile) return;
+
+    setParsing(true);
+    setParseError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const res = await fetch("/api/parse-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Parse request failed");
+
+      const data: ParsedResponse = await res.json();
+
+      setSentence(data.sentence);
+      setTranslation(data.translation);
+
+      // Auto-select existing tags and add new ones
+      const nextSelected = new Set(selectedTagIds);
+      const nextPending = [...pendingNewTags];
+
+      for (const st of data.suggestedTags) {
+        if (st.isExisting) {
+          const match = tags.find(
+            (t) =>
+              t.name.toLowerCase() === st.name.toLowerCase() &&
+              t.category === st.category
+          );
+          if (match) nextSelected.add(match.id);
+        } else {
+          const alreadyPending = nextPending.some(
+            (p) => p.name === st.name && p.category === st.category
+          );
+          const alreadyExisting = tags.some(
+            (t) =>
+              t.name.toLowerCase() === st.name.toLowerCase() &&
+              t.category === st.category
+          );
+          if (!alreadyPending && !alreadyExisting) {
+            nextPending.push({ name: st.name, category: st.category });
+          }
+        }
+      }
+
+      setSelectedTagIds(nextSelected);
+      setPendingNewTags(nextPending);
+    } catch (err) {
+      console.error("Image parse failed:", err);
+      setParseError("Failed to parse image. Please try again.");
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!sentence.trim() || !translation.trim()) return;
@@ -96,6 +187,67 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Image upload + parse */}
+      <div className="space-y-2">
+        <Label>Screenshot (optional)</Label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelect}
+          className="hidden"
+        />
+        {imagePreview ? (
+          <div className="relative">
+            <img
+              src={imagePreview}
+              alt="Screenshot preview"
+              className="max-h-48 w-full rounded-lg border object-contain bg-muted"
+            />
+            <button
+              type="button"
+              onClick={clearImage}
+              className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-background"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-sm text-muted-foreground hover:border-foreground/25 hover:text-foreground transition-colors"
+          >
+            <ImagePlus className="size-5" />
+            Upload a screenshot to auto-fill
+          </button>
+        )}
+        {imageFile && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={handleParseImage}
+            disabled={parsing}
+          >
+            {parsing ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Parsing with AI...
+              </>
+            ) : (
+              "Parse screenshot"
+            )}
+          </Button>
+        )}
+        {parseError && (
+          <p className="text-sm text-destructive">{parseError}</p>
+        )}
+      </div>
+
+      <Separator />
+
       <div className="space-y-2">
         <Label htmlFor="sentence">Spanish sentence</Label>
         <Input

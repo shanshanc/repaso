@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Sentence, Tag, TagCategory, NewSentence } from "@/lib/types";
+import { Sentence, Tag, TagCategory, NewSentence, UpdateSentence } from "@/lib/types";
 
 export async function getAllTags(supabase: SupabaseClient): Promise<Tag[]> {
   const { data, error } = await supabase
@@ -160,4 +160,178 @@ export async function createSentence(
       .map((st) => st.tags)
       .filter(Boolean),
   };
+}
+
+export async function updateSentence(
+  supabase: SupabaseClient,
+  id: string,
+  data: UpdateSentence
+): Promise<Sentence> {
+  const newTagIds: string[] = [];
+  if (data.newTags && data.newTags.length > 0) {
+    for (const nt of data.newTags) {
+      const tag = await createTag(supabase, nt.name, nt.category);
+      newTagIds.push(tag.id);
+    }
+  }
+
+  const { error: sErr } = await supabase
+    .from("sentences")
+    .update({
+      sentence: data.sentence,
+      translation: data.translation,
+      source: data.source ?? "manual",
+    })
+    .eq("id", id);
+
+  if (sErr) throw sErr;
+
+  // Replace all tag links: delete existing, insert new set
+  const { error: delErr } = await supabase
+    .from("sentence_tags")
+    .delete()
+    .eq("sentence_id", id);
+
+  if (delErr) throw delErr;
+
+  const allTagIds = [...data.tagIds, ...newTagIds];
+  if (allTagIds.length > 0) {
+    const { error: linkErr } = await supabase.from("sentence_tags").insert(
+      allTagIds.map((tagId) => ({
+        sentence_id: id,
+        tag_id: tagId,
+      }))
+    );
+    if (linkErr) throw linkErr;
+  }
+
+  // Re-fetch with joined tags
+  const { data: refetched, error: rErr } = await supabase
+    .from("sentences")
+    .select(
+      `
+      id,
+      sentence,
+      translation,
+      source,
+      created_at,
+      sentence_tags ( tag_id, tags ( id, name, category, created_at ) )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (rErr) throw rErr;
+
+  return {
+    id: refetched.id,
+    sentence: refetched.sentence,
+    translation: refetched.translation,
+    source: refetched.source,
+    created_at: refetched.created_at,
+    tags: ((refetched.sentence_tags ?? []) as any[])
+      .map((st) => st.tags)
+      .filter(Boolean),
+  };
+}
+
+export async function deleteSentence(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  const { error } = await supabase.from("sentences").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function renameTag(
+  supabase: SupabaseClient,
+  id: string,
+  name: string
+): Promise<Tag> {
+  const { data, error } = await supabase
+    .from("tags")
+    .update({ name })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Tag;
+}
+
+export async function deleteTag(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  const { error } = await supabase.from("tags").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Merge sourceId into targetId: re-point all sentence_tags from source to target,
+ * skip duplicates, then delete the source tag.
+ */
+export async function mergeTags(
+  supabase: SupabaseClient,
+  sourceId: string,
+  targetId: string
+): Promise<void> {
+  // Get all sentence_ids linked to source
+  const { data: sourceLinks, error: slErr } = await supabase
+    .from("sentence_tags")
+    .select("sentence_id")
+    .eq("tag_id", sourceId);
+
+  if (slErr) throw slErr;
+
+  // Get all sentence_ids already linked to target (to avoid duplicates)
+  const { data: targetLinks, error: tlErr } = await supabase
+    .from("sentence_tags")
+    .select("sentence_id")
+    .eq("tag_id", targetId);
+
+  if (tlErr) throw tlErr;
+
+  const targetSet = new Set((targetLinks ?? []).map((r) => r.sentence_id));
+  const toInsert = (sourceLinks ?? [])
+    .filter((r) => !targetSet.has(r.sentence_id))
+    .map((r) => ({ sentence_id: r.sentence_id, tag_id: targetId }));
+
+  if (toInsert.length > 0) {
+    const { error: insErr } = await supabase
+      .from("sentence_tags")
+      .insert(toInsert);
+    if (insErr) throw insErr;
+  }
+
+  // Delete source tag (cascades sentence_tags rows for source)
+  await deleteTag(supabase, sourceId);
+}
+
+export async function getTagsWithCounts(
+  supabase: SupabaseClient
+): Promise<(Tag & { sentence_count: number })[]> {
+  const { data: tags, error: tErr } = await supabase
+    .from("tags")
+    .select("*")
+    .order("category")
+    .order("name");
+
+  if (tErr) throw tErr;
+
+  const { data: counts, error: cErr } = await supabase
+    .from("sentence_tags")
+    .select("tag_id");
+
+  if (cErr) throw cErr;
+
+  const countMap = new Map<string, number>();
+  for (const row of counts ?? []) {
+    countMap.set(row.tag_id, (countMap.get(row.tag_id) ?? 0) + 1);
+  }
+
+  return (tags ?? []).map((t) => ({
+    ...(t as Tag),
+    sentence_count: countMap.get(t.id) ?? 0,
+  }));
 }

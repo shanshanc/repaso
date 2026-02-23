@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Plus, Search, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, Search, Loader2, Tags } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SentenceList } from "@/components/sentences/SentenceList";
 import { AddSentenceDialog } from "@/components/sentences/AddSentenceDialog";
+import { EditSentenceDialog } from "@/components/sentences/EditSentenceDialog";
 import { TagFilter } from "@/components/tags/TagFilter";
 import { Sentence, Tag, NewSentence } from "@/lib/types";
 
@@ -14,7 +16,8 @@ export default function SentencesPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -76,12 +79,34 @@ export default function SentencesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-
       if (!res.ok) throw new Error("Failed to create sentence");
-
       await fetchData();
     } catch (err) {
       console.error("Failed to add sentence:", err);
+    }
+  };
+
+  const handleEditSentence = async (id: string, data: NewSentence) => {
+    try {
+      const res = await fetch(`/api/sentences/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update sentence");
+      await fetchData();
+    } catch (err) {
+      console.error("Failed to update sentence:", err);
+    }
+  };
+
+  const handleDeleteSentence = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sentences/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete sentence");
+      await fetchData();
+    } catch (err) {
+      console.error("Failed to delete sentence:", err);
     }
   };
 
@@ -95,7 +120,15 @@ export default function SentencesPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight">Repaso</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Repaso</h1>
+        <Link href="/tags">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+            <Tags className="size-4" />
+            Manage tags
+          </Button>
+        </Link>
+      </div>
 
       <div className="space-y-3">
         <div className="relative">
@@ -118,23 +151,39 @@ export default function SentencesPage() {
       </div>
 
       <div className="mt-4">
-        <SentenceList sentences={filtered} />
+        <SentenceList
+          sentences={filtered}
+          onEdit={setEditingSentence}
+          onDelete={handleDeleteSentence}
+        />
       </div>
 
       <Button
         size="icon"
         className="fixed bottom-6 right-6 size-14 rounded-full shadow-lg"
-        onClick={() => setDialogOpen(true)}
+        onClick={() => setAddDialogOpen(true)}
       >
         <Plus className="size-6" />
       </Button>
 
       <AddSentenceDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
         tags={tags}
         onSubmit={handleAddSentence}
       />
+
+      {editingSentence && (
+        <EditSentenceDialog
+          open={!!editingSentence}
+          onOpenChange={(open) => {
+            if (!open) setEditingSentence(null);
+          }}
+          sentence={editingSentence}
+          tags={tags}
+          onSubmit={handleEditSentence}
+        />
+      )}
     </div>
   );
 }

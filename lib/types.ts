@@ -20,3 +20,5 @@ export type NewSentence = Omit<Sentence, "id" | "created_at" | "tags"> & {
   tagIds: string[];
   newTags?: { name: string; category: TagCategory }[];
 };
+
+export type UpdateSentence = NewSentence;

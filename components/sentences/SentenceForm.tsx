@@ -5,30 +5,21 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tag, TagCategory, NewSentence } from "@/lib/types";
 import { TagBadge } from "@/components/tags/TagBadge";
-
-const categoryOrder: TagCategory[] = ["tense", "grammar", "verb", "phrase"];
-const categoryLabels: Record<TagCategory, string> = {
-  tense: "Tenses",
-  grammar: "Grammar",
-  verb: "Verbs",
-  phrase: "Phrases",
-};
+import { TagCombobox } from "@/components/tags/TagCombobox";
 
 type SentenceFormProps = {
   tags: Tag[];
   onSubmit: (data: NewSentence) => void;
   onCancel: () => void;
+  initialData?: {
+    sentence: string;
+    translation: string;
+    tagIds: string[];
+  };
+  submitLabel?: string;
 };
 
 type ParsedResponse = {
@@ -37,12 +28,12 @@ type ParsedResponse = {
   suggestedTags: { name: string; category: TagCategory; isExisting: boolean }[];
 };
 
-export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
-  const [sentence, setSentence] = useState("");
-  const [translation, setTranslation] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagCategory, setNewTagCategory] = useState<TagCategory>("verb");
+export function SentenceForm({ tags, onSubmit, onCancel, initialData, submitLabel }: SentenceFormProps) {
+  const [sentence, setSentence] = useState(initialData?.sentence ?? "");
+  const [translation, setTranslation] = useState(initialData?.translation ?? "");
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(
+    new Set(initialData?.tagIds ?? [])
+  );
   const [pendingNewTags, setPendingNewTags] = useState<
     { name: string; category: TagCategory }[]
   >([]);
@@ -62,28 +53,18 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
     });
   };
 
-  const addNewTag = () => {
-    const trimmed = newTagName.trim().toLowerCase();
-    if (!trimmed) return;
-
+  const addNewTag = (name: string, category: TagCategory) => {
     const alreadyExists =
       tags.some(
-        (t) => t.name.toLowerCase() === trimmed && t.category === newTagCategory
+        (t) => t.name.toLowerCase() === name && t.category === category
       ) ||
       pendingNewTags.some(
-        (t) => t.name.toLowerCase() === trimmed && t.category === newTagCategory
+        (t) => t.name.toLowerCase() === name && t.category === category
       );
 
-    if (alreadyExists) {
-      setNewTagName("");
-      return;
-    }
+    if (alreadyExists) return;
 
-    setPendingNewTags((prev) => [
-      ...prev,
-      { name: trimmed, category: newTagCategory },
-    ]);
-    setNewTagName("");
+    setPendingNewTags((prev) => [...prev, { name, category }]);
   };
 
   const removePendingTag = (index: number) => {
@@ -181,10 +162,6 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
     });
   };
 
-  const groupedTags = new Map<TagCategory, Tag[]>();
-  for (const cat of categoryOrder) groupedTags.set(cat, []);
-  for (const tag of tags) groupedTags.get(tag.category)?.push(tag);
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Image upload + parse */}
@@ -274,74 +251,27 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
 
       <div className="space-y-3">
         <Label>Tags</Label>
-        {categoryOrder.map((category) => {
-          const catTags = groupedTags.get(category);
-          if (!catTags || catTags.length === 0) return null;
-          return (
-            <div key={category}>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {categoryLabels[category]}
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {catTags.map((tag) => (
-                  <label
-                    key={tag.id}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={selectedTagIds.has(tag.id)}
-                      onCheckedChange={() => toggleTag(tag.id)}
-                    />
-                    <span>{tag.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <Separator />
-
-      <div className="space-y-2">
-        <Label>Add new tag</Label>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Tag name"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            className="flex-1"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addNewTag();
-              }
-            }}
-          />
-          <Select
-            value={newTagCategory}
-            onValueChange={(v) => setNewTagCategory(v as TagCategory)}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categoryOrder.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
+        <TagCombobox
+          tags={tags}
+          selectedTagIds={selectedTagIds}
+          pendingNewTags={pendingNewTags}
+          onToggleTag={toggleTag}
+          onAddNewTag={addNewTag}
+        />
+        {(selectedTagIds.size > 0 || pendingNewTags.length > 0) && (
+          <div className="flex flex-wrap gap-1.5">
+            {tags
+              .filter((t) => selectedTagIds.has(t.id))
+              .map((tag) => (
+                <TagBadge
+                  key={tag.id}
+                  tag={tag}
+                  onRemove={() => toggleTag(tag.id)}
+                />
               ))}
-            </SelectContent>
-          </Select>
-          <Button type="button" variant="outline" size="sm" onClick={addNewTag}>
-            Add
-          </Button>
-        </div>
-        {pendingNewTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
             {pendingNewTags.map((tag, i) => (
               <TagBadge
-                key={`${tag.name}-${tag.category}`}
+                key={`new-${tag.name}-${tag.category}`}
                 tag={{
                   id: `new-${i}`,
                   name: tag.name,
@@ -360,7 +290,7 @@ export function SentenceForm({ tags, onSubmit, onCancel }: SentenceFormProps) {
           Cancel
         </Button>
         <Button type="submit" disabled={!sentence.trim() || !translation.trim()}>
-          Add sentence
+          {submitLabel ?? "Add sentence"}
         </Button>
       </div>
     </form>

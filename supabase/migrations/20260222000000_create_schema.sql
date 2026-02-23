@@ -5,7 +5,7 @@ create extension if not exists "uuid-ossp";
 -- sentences
 -- ============================================================
 create table sentences (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   sentence   text not null,
   translation text not null,
   source     text,
@@ -16,7 +16,7 @@ create table sentences (
 -- tags (unique per name + category pair)
 -- ============================================================
 create table tags (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   name       text not null,
   category   text not null check (category in ('tense', 'grammar', 'verb', 'phrase')),
   created_at timestamptz not null default now(),

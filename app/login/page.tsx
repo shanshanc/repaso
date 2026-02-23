@@ -30,7 +30,8 @@ export default function LoginPage() {
         router.push("/sentences");
         router.refresh();
       } else {
-        setError("Invalid password");
+        const data = await res.json();
+        setError(data.error || "Invalid password");
       }
     } catch {
       setError("Something went wrong");

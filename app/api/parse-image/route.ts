@@ -3,8 +3,18 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { getAllTags } from "@/lib/supabase/queries";
 import { TagCategory } from "@/lib/types";
+import { sanitizeText } from "@/lib/sanitize";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+] as const;
+
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 type ParsedResult = {
   sentence: string;
@@ -21,6 +31,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
+    const mimeType = file.type || "image/png";
+    if (!ALLOWED_IMAGE_TYPES.includes(mimeType as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+      return NextResponse.json(
+        {
+          error: `Invalid image type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const size = file.size;
+    if (size > MAX_IMAGE_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          error: `Image too large. Maximum size: ${MAX_IMAGE_SIZE_BYTES / 1024 / 1024}MB`,
+        },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
     const existingTags = await getAllTags(supabase);
 
@@ -30,7 +60,6 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type || "image/png";
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -80,22 +109,32 @@ Respond with ONLY valid JSON in this exact format, no markdown:
       .trim();
 
     const parsed: ParsedResult = JSON.parse(jsonStr);
+    const suggestedTags = Array.isArray(parsed.suggestedTags)
+      ? parsed.suggestedTags
+      : [];
 
     // Validate and reconcile isExisting flags against actual DB tags
-    parsed.suggestedTags = parsed.suggestedTags.map((st) => {
+    const sanitizedTags = suggestedTags.map((st) => {
       const match = existingTags.find(
         (t) =>
           t.name.toLowerCase() === st.name.toLowerCase() &&
           t.category === st.category
       );
       return {
-        name: match ? match.name : st.name.toLowerCase(),
+        name: match ? match.name : sanitizeText(st.name).toLowerCase(),
         category: st.category,
         isExisting: !!match,
       };
     });
 
-    return NextResponse.json(parsed);
+    // Sanitize text outputs from AI before returning to client
+    const sanitized: ParsedResult = {
+      sentence: sanitizeText(parsed.sentence ?? ""),
+      translation: sanitizeText(parsed.translation ?? ""),
+      suggestedTags: sanitizedTags,
+    };
+
+    return NextResponse.json(sanitized);
   } catch (error) {
     console.error("POST /api/parse-image error:", error);
     return NextResponse.json(

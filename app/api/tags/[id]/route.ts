@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { renameTag, deleteTag } from "@/lib/supabase/queries";
+import { sanitizeText } from "@/lib/sanitize";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,7 +12,8 @@ export async function PATCH(
 
   try {
     const { name } = await request.json();
-    const tag = await renameTag(supabase, id, name);
+    const sanitizedName = sanitizeText(name ?? "");
+    const tag = await renameTag(supabase, id, sanitizedName);
     return NextResponse.json(tag);
   } catch (error) {
     console.error(`PATCH /api/tags/${id} error:`, error);

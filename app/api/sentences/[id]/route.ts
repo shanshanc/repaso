@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateSentence, deleteSentence } from "@/lib/supabase/queries";
 import { UpdateSentence } from "@/lib/types";
+import { sanitizeText } from "@/lib/sanitize";
+
+function sanitizeUpdateSentence(body: UpdateSentence): UpdateSentence {
+  return {
+    ...body,
+    sentence: sanitizeText(body.sentence),
+    translation: sanitizeText(body.translation),
+    tagIds: body.tagIds ?? [],
+    newTags: body.newTags?.map((t) => ({
+      name: sanitizeText(t.name),
+      category: t.category,
+    })),
+  };
+}
 
 export async function PUT(
   request: NextRequest,
@@ -12,7 +26,8 @@ export async function PUT(
 
   try {
     const body: UpdateSentence = await request.json();
-    const sentence = await updateSentence(supabase, id, body);
+    const sanitized = sanitizeUpdateSentence(body);
+    const sentence = await updateSentence(supabase, id, sanitized);
     return NextResponse.json(sentence);
   } catch (error) {
     console.error(`PUT /api/sentences/${id} error:`, error);

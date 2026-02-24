@@ -41,5 +41,4 @@ next-env.d.ts
 /coverage
 
 # docs
-plan.md
-openclaw-skill.md
+/plan

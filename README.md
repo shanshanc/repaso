@@ -37,6 +37,7 @@ Copy `.env.example` to `.env.local` and fill in your values:
 | `GEMINI_API_KEY` | Google AI API key (for image parsing) |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (for rate limiting) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
+| `REPASO_API_KEY` | API key for the external search endpoint |
 
 For deployment on Vercel, also set:
 
@@ -70,6 +71,7 @@ repaso/
 │   ├── tags/page.tsx               # Tag management (view, merge, rename)
 │   └── api/
 │       ├── sentences/              # GET, POST, PATCH, DELETE
+│       ├── sentences/search/       # External search API (Bearer auth)
 │       ├── tags/                   # Tags CRUD + merge
 │       ├── parse-image/            # AI image parsing (Gemini)
 │       └── auth/                   # Login + rate limiting
@@ -89,6 +91,7 @@ repaso/
 - **Tag management** — View, merge, and rename tags; tag combobox for quick reuse
 - **Edit / Delete** — Full CRUD for sentences
 - **Protected deployment** — Password login, rate-limited auth API, cookie-based session
+- **OpenClaw Skill** — Query sentences and run interactive practice via Telegram bot
 
 ## Database Schema
 
@@ -134,6 +137,33 @@ Migrations and seeds are in `supabase/migrations/` and `supabase/seed/`.
    - `APP_PASSWORD` — password for `/login`
    - `AUTH_SECRET` — random string for auth cookies (e.g. `openssl rand -base64 32`)
 3. Deploy. The app will redirect to `/login`; `/api/*` and `/login` remain unprotected for auth to work.
+
+## OpenClaw Skill (Telegram Bot)
+
+The `openclaw-skill/` directory contains an [OpenClaw](https://docs.openclaw.ai/) skill that exposes the sentence database via Telegram. It supports:
+
+- **Query** — Ask for sentences by tag or keyword (e.g. "Check subjuntivo sentences")
+- **Practice** — Interactive fill-in-the-blank and translation exercises grounded in your real sentences
+
+### Setup
+
+1. Copy the skill to your OpenClaw instance:
+   ```bash
+   cp openclaw-skill/SKILL.md ~/.openclaw/skills/repaso/SKILL.md
+   ```
+
+2. Add to `skills.entries` in `~/.openclaw/openclaw.json`:
+   ```json5
+   "repaso": {
+     "enabled": true,
+     "env": {
+       "REPASO_API_KEY": "${REPASO_API_KEY}",
+       "REPASO_API_URL": "${REPASO_API_URL}"
+     }
+   }
+   ```
+
+3. Set `REPASO_API_KEY` and `REPASO_API_URL` in your shell environment, then refresh skills or restart the gateway.
 
 ## License
 

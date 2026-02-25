@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    });
 
     const prompt = `You are a Spanish language learning assistant. Analyze this screenshot which contains Spanish text (likely from a textbook, app, or conversation).
 
@@ -135,8 +137,24 @@ Respond with ONLY valid JSON in this exact format, no markdown:
     };
 
     return NextResponse.json(sanitized);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("POST /api/parse-image error:", error);
+
+    if (error instanceof Error) {
+      if (error.message.includes("429")) {
+        return NextResponse.json(
+          { error: "AI quota exceeded. Please try again later." },
+          { status: 429 }
+        );
+      }
+      if (error.message.includes("403") || error.message.includes("401")) {
+        return NextResponse.json(
+          { error: "AI service authentication failed. Check your GEMINI_API_KEY." },
+          { status: 502 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to parse image" },
       { status: 500 }

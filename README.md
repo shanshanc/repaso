@@ -35,6 +35,7 @@ Copy `.env.example` to `.env.local` and fill in your values:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `GEMINI_API_KEY` | Google AI API key (for image parsing) |
+| `GEMINI_MODEL` | Gemini model name (optional, defaults to `gemini-2.0-flash`) |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (for rate limiting) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
 | `REPASO_API_KEY` | API key for the external search endpoint |
@@ -99,7 +100,33 @@ repaso/
 - **tags** — `id`, `name`, `category` (tense | grammar | verb | phrase), `created_at`
 - **sentence_tags** — Junction table (sentence_id, tag_id)
 
-See `plan.md` for schema details.
+### Data Schema
+
+### `sentences`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | Primary key |
+| `sentence` | text | Original Spanish sentence |
+| `translation` | text | English translation |
+| `source` | text | `"manual"` for manual entries; filename or Supabase Storage URL for screenshots |
+| `created_at` | timestamptz | Auto-generated |
+
+### `tags`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | Primary key |
+| `name` | text | Unique, e.g. `pluscuamperfecto`, `llegar` |
+| `category` | text | `tense` \| `grammar` \| `verb` \| `phrase` |
+| `created_at` | timestamptz | Auto-generated |
+
+### `sentence_tags` (junction table)
+| Column | Type | Notes |
+|---|---|---|
+| `sentence_id` | uuid | FK → sentences, on delete cascade |
+| `tag_id` | uuid | FK → tags, on delete cascade |
+
 
 ## Supabase Setup
 

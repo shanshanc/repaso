@@ -105,18 +105,21 @@ export function SentenceForm({ tags, onSubmit, onCancel, initialData, submitLabe
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Parse request failed");
+      const data = await res.json();
 
-      const data: ParsedResponse = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Parse request failed");
+      }
 
-      setSentence(data.sentence);
-      setTranslation(data.translation);
+      const parsed = data as ParsedResponse;
+      setSentence(parsed.sentence);
+      setTranslation(parsed.translation);
 
       // Auto-select existing tags and add new ones
       const nextSelected = new Set(selectedTagIds);
       const nextPending = [...pendingNewTags];
 
-      for (const st of data.suggestedTags) {
+      for (const st of parsed.suggestedTags) {
         if (st.isExisting) {
           const match = tags.find(
             (t) =>
@@ -143,7 +146,9 @@ export function SentenceForm({ tags, onSubmit, onCancel, initialData, submitLabe
       setPendingNewTags(nextPending);
     } catch (err) {
       console.error("Image parse failed:", err);
-      setParseError("Failed to parse image. Please try again.");
+      const message =
+        err instanceof Error ? err.message : "Failed to parse image.";
+      setParseError(message);
     } finally {
       setParsing(false);
     }

@@ -28,17 +28,34 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { searchParams } = request.nextUrl;
 
-  const tag = searchParams.get("tag") || undefined;
+  const tagParam = searchParams.get("tag") || undefined;
   const q = searchParams.get("q") || undefined;
+
+  const tagNames: string[] | undefined = (() => {
+    if (!tagParam) return undefined;
+    const trimmed = tagParam.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (!Array.isArray(parsed)) return undefined;
+        const names = parsed.filter((x): x is string => typeof x === "string");
+        return names.length > 0 ? names : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    return [trimmed];
+  })();
 
   try {
     let tagIds: string[] | undefined;
 
-    if (tag) {
+    if (tagNames && tagNames.length > 0) {
       const { data: matchingTags, error: tagErr } = await supabase
         .from("tags")
         .select("id")
-        .eq("name", tag);
+        .in("name", tagNames);
 
       if (tagErr) throw tagErr;
 

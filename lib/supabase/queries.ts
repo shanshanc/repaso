@@ -1,6 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Sentence, Tag, TagCategory, NewSentence, UpdateSentence } from "@/lib/types";
 
+/** Row shape from sentence_tags join: { tag_id, tags } */
+type SentenceTagRow = { tag_id: string; tags: Tag | null };
+
 export async function getAllTags(supabase: SupabaseClient): Promise<Tag[]> {
   const { data, error } = await supabase
     .from("tags")
@@ -87,10 +90,10 @@ export async function getSentences(
     translation: row.translation,
     source: row.source,
     created_at: row.created_at,
-    tags: ((row.sentence_tags ?? []) as any[])
+    tags: ((row.sentence_tags ?? []) as SentenceTagRow[])
       .map((st) => st.tags)
-      .filter(Boolean)
-      .sort((a: Tag, b: Tag) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
+      .filter((t): t is Tag => t != null)
+      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
   }));
 }
 
@@ -156,9 +159,9 @@ export async function createSentence(
     translation: refetched.translation,
     source: refetched.source,
     created_at: refetched.created_at,
-    tags: ((refetched.sentence_tags ?? []) as any[])
+    tags: ((refetched.sentence_tags ?? []) as unknown as SentenceTagRow[])
       .map((st) => st.tags)
-      .filter(Boolean),
+      .filter((t): t is Tag => t != null),
   };
 }
 
@@ -229,9 +232,9 @@ export async function updateSentence(
     translation: refetched.translation,
     source: refetched.source,
     created_at: refetched.created_at,
-    tags: ((refetched.sentence_tags ?? []) as any[])
+    tags: ((refetched.sentence_tags ?? []) as unknown as SentenceTagRow[])
       .map((st) => st.tags)
-      .filter(Boolean),
+      .filter((t): t is Tag => t != null),
   };
 }
 

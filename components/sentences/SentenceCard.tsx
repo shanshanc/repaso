@@ -8,11 +8,12 @@ import { Sentence } from "@/lib/types";
 
 type SentenceCardProps = {
   sentence: Sentence;
+  isAuthed: boolean;
   onEdit: (sentence: Sentence) => void;
   onDelete: (id: string) => void;
 };
 
-export function SentenceCard({ sentence, onEdit, onDelete }: SentenceCardProps) {
+export function SentenceCard({ sentence, isAuthed, onEdit, onDelete }: SentenceCardProps) {
   return (
     <Card className="group">
       <CardContent className="space-y-2 p-4">
@@ -25,24 +26,26 @@ export function SentenceCard({ sentence, onEdit, onDelete }: SentenceCardProps) 
               {sentence.translation}
             </p>
           </div>
-          <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={() => onEdit(sentence)}
-            >
-              <Pencil className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-destructive hover:text-destructive"
-              onClick={() => onDelete(sentence.id)}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
+          {isAuthed && (
+            <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => onEdit(sentence)}
+              >
+                <Pencil className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-destructive hover:text-destructive"
+                onClick={() => onDelete(sentence.id)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
         {sentence.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">

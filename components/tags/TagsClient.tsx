@@ -30,11 +30,10 @@ type TagWithCount = Tag & { sentence_count: number };
 const categoryLabels: Record<TagCategory, string> = {
   tense: "Tenses",
   grammar: "Grammar",
-  verb: "Verbs",
-  phrase: "Phrases",
+  topic: "Topics",
 };
 
-const categoryOrder: TagCategory[] = ["tense", "grammar", "verb", "phrase"];
+const categoryOrder: TagCategory[] = ["tense", "grammar", "topic"];
 
 type TagsClientProps = {
   isAuthed: boolean;

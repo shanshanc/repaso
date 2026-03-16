@@ -79,8 +79,9 @@ Existing tags in the user's database: [${tagList}]
 Tag categories and what they mean:
 - "tense": verb tenses like presente, pretérito, imperfecto, pluscuamperfecto, subjuntivo, futuro, condicional
 - "grammar": grammar concepts like "ser vs estar", "por vs para", "pronombres"
-- "verb": specific verbs like llegar, hacer, tener
-- "phrase": multi-word expressions like "antes de que", "a pesar de", "en cuanto"
+- "topic": subject matter like weather, food & cooking, shopping, travel, health, work, family, daily routines, emotions, housing, numbers & time, nature
+
+A sentence can have multiple topic tags. For example a sentence about ordering food while traveling could be tagged with both "food & cooking" and "travel".
 
 Instructions:
 1. Extract the Spanish sentence exactly as written
@@ -93,7 +94,7 @@ Respond with ONLY valid JSON in this exact format, no markdown:
   "sentence": "the Spanish sentence",
   "translation": "the English translation",
   "suggestedTags": [
-    { "name": "tag name", "category": "tense|grammar|verb|phrase", "isExisting": true }
+    { "name": "tag name", "category": "tense|grammar|topic", "isExisting": true }
   ]
 }`;
 

@@ -26,12 +26,11 @@ import {
 import { Tag, TagCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const categoryOrder: TagCategory[] = ["tense", "grammar", "verb", "phrase"];
+const categoryOrder: TagCategory[] = ["tense", "grammar", "topic"];
 const categoryLabels: Record<TagCategory, string> = {
   tense: "Tenses",
   grammar: "Grammar",
-  verb: "Verbs",
-  phrase: "Phrases",
+  topic: "Topics",
 };
 
 type TagComboboxProps = {
@@ -51,7 +50,7 @@ export function TagCombobox({
 }: TagComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [newTagCategory, setNewTagCategory] = useState<TagCategory>("verb");
+  const [newTagCategory, setNewTagCategory] = useState<TagCategory>("topic");
 
   const trimmed = search.trim().toLowerCase();
 

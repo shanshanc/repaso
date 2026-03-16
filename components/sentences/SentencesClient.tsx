@@ -3,14 +3,23 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Search, Loader2, Tags } from "lucide-react";
+import { Plus, Search, Loader2, Tags, ArrowDownUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SentenceList } from "@/components/sentences/SentenceList";
 import { AddSentenceDialog } from "@/components/sentences/AddSentenceDialog";
 import { EditSentenceDialog } from "@/components/sentences/EditSentenceDialog";
 import { TagFilter } from "@/components/tags/TagFilter";
 import { Sentence, Tag, NewSentence } from "@/lib/types";
+
+type SortOrder = "newest" | "oldest" | "random";
 
 type SentencesClientProps = {
   isAuthed: boolean;
@@ -22,6 +31,8 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [showUntaggedOnly, setShowUntaggedOnly] = useState(false);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +61,7 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
   }, [fetchData]);
 
   const toggleTag = (tagId: string) => {
+    setShowUntaggedOnly(false);
     setSelectedTagIds((prev) => {
       const next = new Set(prev);
       if (next.has(tagId)) next.delete(tagId);
@@ -58,15 +70,25 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
     });
   };
 
-  const clearAllTags = () => setSelectedTagIds(new Set());
+  const toggleUntagged = () => {
+    setShowUntaggedOnly((prev) => !prev);
+    setSelectedTagIds(new Set());
+  };
+
+  const clearAllFilters = () => {
+    setSelectedTagIds(new Set());
+    setShowUntaggedOnly(false);
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return sentences.filter((s) => {
+    const result = sentences.filter((s) => {
       const matchesSearch =
         !q ||
         s.sentence.toLowerCase().includes(q) ||
         s.translation.toLowerCase().includes(q);
+
+      if (showUntaggedOnly) return matchesSearch && s.tags.length === 0;
 
       const matchesTags =
         selectedTagIds.size === 0 ||
@@ -76,7 +98,22 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
 
       return matchesSearch && matchesTags;
     });
-  }, [sentences, search, selectedTagIds]);
+
+    if (sortOrder === "oldest") {
+      return [...result].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    }
+    if (sortOrder === "random") {
+      const shuffled = [...result];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    return result;
+  }, [sentences, search, selectedTagIds, showUntaggedOnly, sortOrder]);
 
   const handleAddSentence = async (data: NewSentence) => {
     const res = await fetch("/api/sentences", {
@@ -163,15 +200,33 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
         </div>
       </div>
 
+      <p className="mb-5 text-sm text-muted-foreground">
+        Collect, organize, and review Spanish example sentences. Tag by tense,
+        grammar, or topic, then search and filter to focus your practice.
+      </p>
+
       <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search sentences..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search sentences..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+            <SelectTrigger className="w-[130px] gap-1.5">
+              <ArrowDownUp className="size-3.5 shrink-0 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="random">Random</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <TagFilter
@@ -179,7 +234,9 @@ export function SentencesClient({ isAuthed }: SentencesClientProps) {
           sentences={sentences}
           selectedTagIds={selectedTagIds}
           onToggleTag={toggleTag}
-          onClearAll={clearAllTags}
+          onClearAll={clearAllFilters}
+          showUntaggedOnly={showUntaggedOnly}
+          onToggleUntagged={toggleUntagged}
         />
       </div>
 

@@ -1,4 +1,4 @@
-export type TagCategory = "tense" | "grammar" | "verb" | "phrase";
+export type TagCategory = "tense" | "grammar" | "topic";
 
 export type Tag = {
   id: string;

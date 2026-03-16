@@ -8,12 +8,12 @@ export const fakeTags: Tag[] = [
   { id: "t5", name: "imperfecto", category: "tense", created_at: "2026-01-01T00:00:00Z" },
   { id: "t6", name: "ser vs estar", category: "grammar", created_at: "2026-01-01T00:00:00Z" },
   { id: "t7", name: "por vs para", category: "grammar", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t8", name: "llegar", category: "verb", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t9", name: "hacer", category: "verb", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t10", name: "tener", category: "verb", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t11", name: "antes de que", category: "phrase", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t12", name: "a pesar de", category: "phrase", created_at: "2026-01-01T00:00:00Z" },
-  { id: "t13", name: "en cuanto", category: "phrase", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t8", name: "weather", category: "topic", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t9", name: "food & cooking", category: "topic", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t10", name: "travel", category: "topic", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t11", name: "family", category: "topic", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t12", name: "daily routines", category: "topic", created_at: "2026-01-01T00:00:00Z" },
+  { id: "t13", name: "work", category: "topic", created_at: "2026-01-01T00:00:00Z" },
 ];
 
 export const fakeSentences: Sentence[] = [

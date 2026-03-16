@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tag, TagCategory, NewSentence } from "@/lib/types";
-import { TagBadge } from "@/components/tags/TagBadge";
-import { TagCombobox } from "@/components/tags/TagCombobox";
+import { TagChipPicker } from "@/components/tags/TagChipPicker";
 
 type SentenceFormProps = {
   tags: Tag[];
@@ -256,38 +255,14 @@ export function SentenceForm({ tags, onSubmit, onCancel, initialData, submitLabe
 
       <div className="space-y-3">
         <Label>Tags</Label>
-        <TagCombobox
+        <TagChipPicker
           tags={tags}
           selectedTagIds={selectedTagIds}
           pendingNewTags={pendingNewTags}
           onToggleTag={toggleTag}
           onAddNewTag={addNewTag}
+          onRemovePendingTag={removePendingTag}
         />
-        {(selectedTagIds.size > 0 || pendingNewTags.length > 0) && (
-          <div className="flex flex-wrap gap-1.5">
-            {tags
-              .filter((t) => selectedTagIds.has(t.id))
-              .map((tag) => (
-                <TagBadge
-                  key={tag.id}
-                  tag={tag}
-                  onRemove={() => toggleTag(tag.id)}
-                />
-              ))}
-            {pendingNewTags.map((tag, i) => (
-              <TagBadge
-                key={`new-${tag.name}-${tag.category}`}
-                tag={{
-                  id: `new-${i}`,
-                  name: tag.name,
-                  category: tag.category,
-                  created_at: "",
-                }}
-                onRemove={() => removePendingTag(i)}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

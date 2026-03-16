@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateSentence, deleteSentence } from "@/lib/supabase/queries";
 import { UpdateSentence } from "@/lib/types";
 import { sanitizeText } from "@/lib/sanitize";
+import { verifyAuth } from "@/lib/auth";
 
 function sanitizeUpdateSentence(body: UpdateSentence): UpdateSentence {
   return {
@@ -21,6 +22,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const supabase = await createClient();
 
@@ -39,9 +44,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const supabase = await createClient();
 

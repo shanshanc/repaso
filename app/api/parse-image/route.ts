@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAllTags } from "@/lib/supabase/queries";
 import { TagCategory } from "@/lib/types";
 import { sanitizeText } from "@/lib/sanitize";
+import { verifyAuth } from "@/lib/auth";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -23,6 +24,10 @@ type ParsedResult = {
 };
 
 export async function POST(request: NextRequest) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("image") as File | null;

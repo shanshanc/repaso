@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSentences, createSentence } from "@/lib/supabase/queries";
 import { NewSentence } from "@/lib/types";
 import { sanitizeText } from "@/lib/sanitize";
+import { verifyAuth } from "@/lib/auth";
 
 function sanitizeSentence(body: NewSentence): NewSentence {
   return {
@@ -40,6 +41,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabase = await createClient();
 
   try {

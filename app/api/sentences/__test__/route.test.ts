@@ -7,7 +7,6 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({}),
 }));
 
-
 vi.mock("@/lib/supabase/queries", () => ({
   getSentences: vi.fn().mockResolvedValue([]),
   createSentence: vi.fn().mockResolvedValue({
@@ -16,6 +15,12 @@ vi.mock("@/lib/supabase/queries", () => ({
     translation: "World",
   }),
 }));
+
+vi.mock("@/lib/auth", () => ({
+  verifyAuth: vi.fn().mockResolvedValue(true),
+}));
+
+import { verifyAuth } from "@/lib/auth";
 
 function makeGetRequest(params?: Record<string, string>) {
   const url = new URL("http://localhost/api/sentences");
@@ -74,7 +79,7 @@ describe("GET /api/sentences", () => {
     vi.mocked(getSentences).mockResolvedValueOnce([
       { id : "1", sentence: "hola", "translation": "hello", tags: [], created_at: "" }
     ])
-    
+
     expect(getSentences).toHaveBeenCalledWith(expect.anything(), {
       search: undefined,
       tagIds: undefined
@@ -121,6 +126,20 @@ describe("POST /api/sentences", () => {
     });
   });
 
+  it("Return 401 when not authenticated", async () => {
+    vi.mocked(verifyAuth).mockResolvedValueOnce(false);
+
+    const res = await POST(makePostRequest({
+      sentence: "Hello",
+      translation: "World",
+      tagIds: [],
+      newTags: []
+    }));
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Unauthorized" });
+  });
+
   it("sentence and translation are sanitized", async () => {
     await POST(makePostRequest({
       sentence: "<script>alert('xss')</script>",
@@ -130,7 +149,7 @@ describe("POST /api/sentences", () => {
     }))
 
     expect(createSentence).toHaveBeenCalledWith(
-      expect.anything(), 
+      expect.anything(),
       expect.objectContaining({
         sentence: "alert('xss')"
       })
